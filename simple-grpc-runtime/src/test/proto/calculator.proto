@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package org.signal.grpc.simple;
+
+service Calculator {
+  rpc Add(AdditionRequest) returns (AdditionResponse) {}
+  rpc AddStream(stream AdditionRequest) returns (AdditionResponse) {}
+  rpc Factor(FactorRequest) returns (stream FactorResponse) {}
+  rpc RunningAddition(stream AdditionRequest) returns (stream AdditionResponse) {}
+}
+
+message AdditionRequest {
+  repeated int32 addend = 1;
+}
+
+message AdditionResponse {
+  int64 sum = 1;
+}
+
+message FactorRequest {
+  uint64 number = 1;
+}
+
+message FactorResponse {
+  uint64 factor = 1;
+}

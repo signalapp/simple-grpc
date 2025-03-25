@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package org.signal.grpc.simple.test;
+
+service Test {
+  rpc Unary(UnaryRequest) returns (UnaryResponse) {}
+  rpc ServerStreaming(ServerStreamingRequest) returns (stream ServerStreamingResponse) {}
+  rpc ClientStreaming(stream ClientStreamingRequest) returns (ClientStreamingResponse) {}
+  rpc BidirectionalStreaming(stream BidirectionalStreamingRequest) returns (stream BidirectionalStreamingResponse) {}
+}
+
+message UnaryRequest {
+}
+
+message UnaryResponse {
+}
+
+message ServerStreamingRequest {
+}
+
+message ServerStreamingResponse {
+}
+
+message ClientStreamingRequest {
+}
+
+message ClientStreamingResponse {
+}
+
+message BidirectionalStreamingRequest {
+}
+
+message BidirectionalStreamingResponse {
+}
