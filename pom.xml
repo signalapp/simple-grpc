@@ -32,10 +32,19 @@
     <junit.version>5.12.1</junit.version>
     <mockito.version>5.16.1</mockito.version>
     <protoc.version>3.25.5</protoc.version> <!-- Same version as grpc-protobuf -->
+    <reactor.bom.version>2020.0.9</reactor.bom.version>
   </properties>
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>io.projectreactor</groupId>
+        <artifactId>reactor-bom</artifactId>
+        <version>${reactor.bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
       <dependency>
         <groupId>com.salesforce.servicelibs</groupId>
         <artifactId>jprotoc</artifactId>

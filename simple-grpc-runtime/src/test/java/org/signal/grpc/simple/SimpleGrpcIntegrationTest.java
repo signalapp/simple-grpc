@@ -5,95 +5,189 @@
 
 package org.signal.grpc.simple;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import io.grpc.Channel;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
-import org.junit.jupiter.api.Test;
+import io.grpc.stub.ClientCallStreamObserver;
+import io.grpc.stub.ClientResponseObserver;
 import java.io.IOException;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import java.util.Iterator;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import reactor.adapter.JdkFlowAdapter;
+import reactor.core.publisher.Flux;
 
 public class SimpleGrpcIntegrationTest {
 
+  private CalculatorService calculatorService;
+
+  private Server server;
+  private Channel channel;
+
+  private static final String SERVER_NAME = "calculator-test";
+
   private static class CalculatorService extends SimpleCalculatorGrpc.CalculatorImplBase {
+
+    private final AtomicInteger countElementsGenerated = new AtomicInteger();
 
     @Override
     public AdditionResponse add(final AdditionRequest request) {
+      if (request.getAddendList().isEmpty()) {
+        throw new IllegalArgumentException("Must specify at least one addend");
+      }
+
       return AdditionResponse.newBuilder().setSum(request.getAddendList().stream()
               .mapToInt(i -> i)
               .sum())
           .build();
     }
-  }
-
-  private static class ExceptionCalculatorService extends SimpleCalculatorGrpc.CalculatorImplBase {
 
     @Override
-    public AdditionResponse add(final AdditionRequest request) {
-      throw new IllegalArgumentException();
+    public Flow.Publisher<CountResponse> count(final CountRequest request) {
+      if (request.getLimit() < 1) {
+        throw new IllegalArgumentException("Limit must be positive");
+      }
+
+      return JdkFlowAdapter.publisherToFlowPublisher(Flux.range(0, request.getLimit())
+          .doOnNext(ignored -> countElementsGenerated.incrementAndGet())
+          .map(i -> CountResponse.newBuilder().setNumber(i).build()));
+    }
+
+    public int getCountElementsGenerated() {
+      return countElementsGenerated.get();
     }
 
     @Override
-    protected Throwable mapException(final Exception e) {
+    protected Throwable mapException(final Throwable e) {
       if (e instanceof IllegalArgumentException) {
-        return Status.INVALID_ARGUMENT.asException();
+        return Status.INVALID_ARGUMENT.withCause(e).asException();
       }
 
       return super.mapException(e);
     }
   }
 
-  @Test
-  void testUnary() throws IOException {
-    final Server server = InProcessServerBuilder.forName("test")
+  @BeforeEach
+  void setUp() throws IOException {
+    calculatorService = new CalculatorService();
+
+    server = InProcessServerBuilder.forName(SERVER_NAME)
         .directExecutor()
-        .addService(new CalculatorService())
+        .addService(calculatorService)
         .build()
         .start();
 
-    try {
-      final Channel channel = InProcessChannelBuilder.forName("test")
-          .directExecutor()
-          .build();
+    channel = InProcessChannelBuilder.forName(SERVER_NAME)
+        .directExecutor()
+        .build();
+  }
 
-      final CalculatorGrpc.CalculatorBlockingStub stub = CalculatorGrpc.newBlockingStub(channel);
-
-      final AdditionRequest additionRequest = AdditionRequest.newBuilder()
-          .addAddend(8)
-          .addAddend(6)
-          .build();
-
-      assertEquals(14, stub.add(additionRequest).getSum());
-    } finally {
-      server.shutdownNow();
-    }
+  @AfterEach
+  void tearDown() {
+    server.shutdownNow();
   }
 
   @Test
-  void testUnaryException() throws IOException {
-    final Server server = InProcessServerBuilder.forName("test")
-        .directExecutor()
-        .addService(new ExceptionCalculatorService())
-        .build()
-        .start();
+  void testUnary() {
+    final CalculatorGrpc.CalculatorBlockingStub stub = CalculatorGrpc.newBlockingStub(channel);
 
-    try {
-      final Channel channel = InProcessChannelBuilder.forName("test")
-          .directExecutor()
-          .build();
+    final AdditionRequest additionRequest = AdditionRequest.newBuilder()
+        .addAddend(8)
+        .addAddend(6)
+        .build();
 
-      final CalculatorGrpc.CalculatorBlockingStub stub = CalculatorGrpc.newBlockingStub(channel);
+    assertEquals(14, stub.add(additionRequest).getSum());
+  }
 
-      final StatusRuntimeException statusRuntimeException =
-          assertThrows(StatusRuntimeException.class, () -> stub.add(AdditionRequest.newBuilder().build()));
+  @Test
+  void testUnaryException() {
+    final CalculatorGrpc.CalculatorBlockingStub stub = CalculatorGrpc.newBlockingStub(channel);
 
-      assertEquals(Status.INVALID_ARGUMENT, statusRuntimeException.getStatus());
-    } finally {
-      server.shutdownNow();
+    final StatusRuntimeException statusRuntimeException =
+        assertThrows(StatusRuntimeException.class, () -> stub.add(AdditionRequest.newBuilder().build()));
+
+    assertEquals(Status.INVALID_ARGUMENT, statusRuntimeException.getStatus());
+  }
+
+  @Test
+  void testServerStreaming() {
+    final int limit = 10;
+
+    final Iterator<CountResponse> responseIterator = CalculatorGrpc.newBlockingStub(channel)
+        .count(CountRequest.newBuilder().setLimit(limit).build());
+
+    int elementsCounted = 0;
+
+    while (responseIterator.hasNext()) {
+      assertEquals(elementsCounted++, responseIterator.next().getNumber());
     }
+
+    assertEquals(limit, elementsCounted);
+  }
+
+  @Test
+  void testServerStreamingFlowControl() throws IOException, InterruptedException {
+    final CalculatorGrpc.CalculatorStub stub = CalculatorGrpc.newStub(channel);
+    final CountDownLatch terminationLatch = new CountDownLatch(1);
+
+    final AtomicBoolean completed = new AtomicBoolean();
+    final AtomicReference<Throwable> error = new AtomicReference<>();
+    final AtomicInteger elementsReceived = new AtomicInteger();
+
+    final int cancelAfter = 3;
+
+    final ClientResponseObserver<CountRequest, CountResponse> clientResponseObserver = new ClientResponseObserver<>() {
+
+      private ClientCallStreamObserver<CountRequest> requestStream;
+
+      @Override
+      public void beforeStart(final ClientCallStreamObserver<CountRequest> requestStream) {
+        this.requestStream = requestStream;
+        this.requestStream.disableAutoRequestWithInitial(1);
+      }
+
+      @Override
+      public void onNext(final CountResponse value) {
+        if (elementsReceived.incrementAndGet() == cancelAfter) {
+          requestStream.cancel("Cancel after set number of elements", null);
+        } else {
+          requestStream.request(1);
+        }
+      }
+
+      @Override
+      public void onError(final Throwable t) {
+        error.set(t);
+        terminationLatch.countDown();
+      }
+
+      @Override
+      public void onCompleted() {
+        completed.set(true);
+        terminationLatch.countDown();
+      }
+    };
+
+    stub.count(CountRequest.newBuilder().setLimit(cancelAfter * 10).build(), clientResponseObserver);
+    terminationLatch.await();
+
+    assertFalse(completed.get());
+    assertInstanceOf(StatusRuntimeException.class, error.get());
+    assertEquals(Status.CANCELLED.getCode(), ((StatusRuntimeException) error.get()).getStatus().getCode());
+    assertEquals(cancelAfter, calculatorService.getCountElementsGenerated());
   }
 }

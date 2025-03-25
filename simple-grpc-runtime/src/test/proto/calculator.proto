@@ -7,7 +7,7 @@ package org.signal.grpc.simple;
 service Calculator {
   rpc Add(AdditionRequest) returns (AdditionResponse) {}
   rpc AddStream(stream AdditionRequest) returns (AdditionResponse) {}
-  rpc Factor(FactorRequest) returns (stream FactorResponse) {}
+  rpc Count(CountRequest) returns (stream CountResponse) {}
   rpc RunningAddition(stream AdditionRequest) returns (stream AdditionResponse) {}
 }
 
@@ -19,10 +19,10 @@ message AdditionResponse {
   int64 sum = 1;
 }
 
-message FactorRequest {
-  uint64 number = 1;
+message CountRequest {
+  uint32 limit = 1;
 }
 
-message FactorResponse {
-  uint64 factor = 1;
+message CountResponse {
+  uint32 number = 1;
 }
