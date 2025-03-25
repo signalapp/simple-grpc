@@ -140,4 +140,59 @@ class ServerCallsTest {
     verify(responseObserver, never()).onNext(any());
     verify(responseObserver, never()).onCompleted();
   }
+
+  @Test
+  void clientStreamingCall() {
+    @SuppressWarnings("unchecked") final ServerCallStreamObserver<List<Integer>> responseObserver =
+        mock(ServerCallStreamObserver.class);
+
+    final ClientRequestPublisher<Integer> clientRequestPublisher =
+        (ClientRequestPublisher<Integer>) ServerCalls.clientStreamingCall(responseObserver,
+            (CheckedFunction<Flow.Publisher<Integer>, CompletionStage<List<Integer>>>) (requestPublisher ->
+                JdkFlowAdapter.flowPublisherToFlux(requestPublisher)
+                    .collectList()
+                    .toFuture()),
+            ServerCalls::mapException);
+
+    clientRequestPublisher.onNext(0);
+    clientRequestPublisher.onNext(1);
+    clientRequestPublisher.onNext(2);
+    clientRequestPublisher.onCompleted();
+
+    verify(responseObserver).onNext(List.of(0, 1, 2));
+    verify(responseObserver).onCompleted();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void clientStreamingCallException(final boolean cancelled) {
+    @SuppressWarnings("unchecked") final ServerCallStreamObserver<List<Integer>> responseObserver =
+        mock(ServerCallStreamObserver.class);
+
+    when(responseObserver.isCancelled()).thenReturn(cancelled);
+
+    ServerCalls.clientStreamingCall(responseObserver,
+        ignored -> {
+          throw new RuntimeException();
+        },
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
+
+    verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void clientStreamingCallPublishedError(final boolean cancelled) {
+    @SuppressWarnings("unchecked") final ServerCallStreamObserver<List<Integer>> responseObserver =
+        mock(ServerCallStreamObserver.class);
+
+    when(responseObserver.isCancelled()).thenReturn(cancelled);
+
+    ServerCalls.clientStreamingCall(responseObserver,
+        (CheckedFunction<Flow.Publisher<Integer>, CompletionStage<List<Integer>>>) (ignored ->
+            CompletableFuture.failedFuture(new RuntimeException())),
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
+
+    verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
+  }
 }

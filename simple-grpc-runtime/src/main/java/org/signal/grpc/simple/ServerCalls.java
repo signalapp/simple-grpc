@@ -96,7 +96,29 @@ public class ServerCalls {
       final CheckedFunction<Flow.Publisher<Req>, CompletionStage<Resp>> delegate,
       final Function<Throwable, Throwable> exceptionMapper) {
 
-    throw new UnsupportedOperationException();
+    final ClientRequestPublisher<Req> clientRequestPublisher = new ClientRequestPublisher<>(responseObserver);
+
+    try {
+      // We won't actually start getting requests until we return the `clientRequestPublisher`, which is what the gRPC
+      // runtime uses to pass requests in. That means that we also won't get a response until after this method returns.
+      // To deal with that, implementing methods return a `CompletionStage` that can complete asynchronously.
+      delegate.apply(clientRequestPublisher)
+          .whenComplete((response, throwable) -> {
+            if (throwable != null) {
+              handleDelegateException(throwable, exceptionMapper, responseObserver);
+            } else {
+              // Don't try to respond if the server has already canceled the request
+              if (!responseObserver.isCancelled()) {
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+              }
+            }
+          });
+    } catch (final Exception e) {
+      handleDelegateException(e, exceptionMapper, responseObserver);
+    }
+
+    return clientRequestPublisher;
   }
 
   /**

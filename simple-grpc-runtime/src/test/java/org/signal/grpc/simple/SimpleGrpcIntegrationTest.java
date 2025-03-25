@@ -8,7 +8,9 @@ package org.signal.grpc.simple;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.grpc.Channel;
 import io.grpc.Server;
@@ -18,12 +20,15 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
+import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +70,15 @@ public class SimpleGrpcIntegrationTest {
       return JdkFlowAdapter.publisherToFlowPublisher(Flux.range(0, request.getLimit())
           .doOnNext(ignored -> countElementsGenerated.incrementAndGet())
           .map(i -> CountResponse.newBuilder().setNumber(i).build()));
+    }
+
+    @Override
+    public CompletionStage<AdditionResponse> addStream(final Flow.Publisher<AdditionRequest> request) {
+      return JdkFlowAdapter.flowPublisherToFlux(request)
+          .flatMapIterable(AdditionRequest::getAddendList)
+          .reduce(0, Integer::sum)
+          .map(sum -> AdditionResponse.newBuilder().setSum(sum).build())
+          .toFuture();
     }
 
     public int getCountElementsGenerated() {
@@ -189,5 +203,45 @@ public class SimpleGrpcIntegrationTest {
     assertInstanceOf(StatusRuntimeException.class, error.get());
     assertEquals(Status.CANCELLED.getCode(), ((StatusRuntimeException) error.get()).getStatus().getCode());
     assertEquals(cancelAfter, calculatorService.getCountElementsGenerated());
+  }
+
+  @Test
+  void testClientStreaming() throws IOException, InterruptedException {
+    final CountDownLatch terminationLatch = new CountDownLatch(1);
+
+    final AtomicBoolean completed = new AtomicBoolean();
+    final AtomicReference<Throwable> error = new AtomicReference<>();
+    final AtomicLong sum = new AtomicLong();
+
+    final StreamObserver<AdditionRequest> requestStreamObserver =
+        CalculatorGrpc.newStub(channel).addStream(new StreamObserver<>() {
+          @Override
+          public void onNext(final AdditionResponse value) {
+            sum.set(value.getSum());
+          }
+
+          @Override
+          public void onError(final Throwable t) {
+            error.set(t);
+            terminationLatch.countDown();
+          }
+
+          @Override
+          public void onCompleted() {
+            completed.set(true);
+            terminationLatch.countDown();
+          }
+        });
+
+    requestStreamObserver.onNext(AdditionRequest.newBuilder().addAddend(6).build());
+    requestStreamObserver.onNext(AdditionRequest.newBuilder().addAddend(7).build());
+    requestStreamObserver.onNext(AdditionRequest.newBuilder().addAddend(8).build());
+    requestStreamObserver.onCompleted();
+
+    terminationLatch.await();
+
+    assertTrue(completed.get());
+    assertNull(error.get());
+    assertEquals(21, sum.get());
   }
 }
