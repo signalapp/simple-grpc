@@ -22,7 +22,10 @@ import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
@@ -79,6 +82,17 @@ public class SimpleGrpcIntegrationTest {
           .reduce(0, Integer::sum)
           .map(sum -> AdditionResponse.newBuilder().setSum(sum).build())
           .toFuture();
+    }
+
+    @Override
+    public Flow.Publisher<AdditionResponse> runningAddition(final Flow.Publisher<AdditionRequest> request) {
+      final AtomicLong runningSum = new AtomicLong();
+
+      return JdkFlowAdapter.publisherToFlowPublisher(JdkFlowAdapter.flowPublisherToFlux(request)
+          .map(AdditionRequest::getAddendList)
+          .map(addends -> addends.stream().mapToLong(l -> l).sum())
+          .map(runningSum::addAndGet)
+          .map(sum -> AdditionResponse.newBuilder().setSum(sum).build()));
     }
 
     public int getCountElementsGenerated() {
@@ -243,5 +257,45 @@ public class SimpleGrpcIntegrationTest {
     assertTrue(completed.get());
     assertNull(error.get());
     assertEquals(21, sum.get());
+  }
+
+  @Test
+  void testBidirectionalStreaming() throws IOException, InterruptedException {
+    final CountDownLatch terminationLatch = new CountDownLatch(1);
+
+    final AtomicBoolean completed = new AtomicBoolean();
+    final AtomicReference<Throwable> error = new AtomicReference<>();
+    final List<Long> responses = Collections.synchronizedList(new ArrayList<>());
+
+    final StreamObserver<AdditionRequest> requestStreamObserver =
+        CalculatorGrpc.newStub(channel).runningAddition(new StreamObserver<>() {
+          @Override
+          public void onNext(final AdditionResponse value) {
+            responses.add(value.getSum());
+          }
+
+          @Override
+          public void onError(final Throwable t) {
+            error.set(t);
+            terminationLatch.countDown();
+          }
+
+          @Override
+          public void onCompleted() {
+            completed.set(true);
+            terminationLatch.countDown();
+          }
+        });
+
+    requestStreamObserver.onNext(AdditionRequest.newBuilder().addAddend(6).build());
+    requestStreamObserver.onNext(AdditionRequest.newBuilder().addAddend(7).build());
+    requestStreamObserver.onNext(AdditionRequest.newBuilder().addAddend(8).build());
+    requestStreamObserver.onCompleted();
+
+    terminationLatch.await();
+
+    assertTrue(completed.get());
+    assertNull(error.get());
+    assertEquals(List.of(6L, 13L, 21L), responses);
   }
 }

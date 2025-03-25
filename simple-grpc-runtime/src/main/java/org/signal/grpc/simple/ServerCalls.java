@@ -139,7 +139,16 @@ public class ServerCalls {
       final CheckedFunction<Flow.Publisher<Req>, Flow.Publisher<Resp>> delegate,
       final Function<Throwable, Throwable> exceptionMapper) {
 
-    throw new UnsupportedOperationException();
+    final ClientRequestPublisher<Req> clientRequestPublisher = new ClientRequestPublisher<>(responseObserver);
+
+    try {
+      delegate.apply(clientRequestPublisher)
+          .subscribe(new ServerResponseSubscriber<>(responseObserver, exceptionMapper));
+    } catch (final Exception e) {
+      handleDelegateException(e, exceptionMapper, responseObserver);
+    }
+
+    return clientRequestPublisher;
   }
 
   /**

@@ -195,4 +195,58 @@ class ServerCallsTest {
 
     verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
   }
+
+  @Test
+  void bidirectionalStreamingCall() {
+    @SuppressWarnings("unchecked") final ServerCallStreamObserver<Integer> responseObserver =
+        mock(ServerCallStreamObserver.class);
+
+    final ClientRequestPublisher<Integer> clientRequestPublisher =
+        (ClientRequestPublisher<Integer>) ServerCalls.bidirectionalStreamingCall(responseObserver,
+            (CheckedFunction<Flow.Publisher<Integer>, Flow.Publisher<Integer>>) (requestPublisher ->
+                JdkFlowAdapter.publisherToFlowPublisher(JdkFlowAdapter.flowPublisherToFlux(requestPublisher)
+                    .map(n -> -n))),
+            ServerCalls::mapException);
+
+    clientRequestPublisher.onNext(0);
+    clientRequestPublisher.onNext(1);
+    clientRequestPublisher.onNext(2);
+    clientRequestPublisher.onCompleted();
+
+    final ArgumentCaptor<Integer> responseCaptor = ArgumentCaptor.forClass(Integer.class);
+
+    verify(responseObserver, times(3)).onNext(responseCaptor.capture());
+    verify(responseObserver).onCompleted();
+
+    assertEquals(List.of(0, -1, -2), responseCaptor.getAllValues());
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void bidirectionalStreamingCallException(final boolean cancelled) {
+    @SuppressWarnings("unchecked") final ServerCallStreamObserver<Integer> responseObserver =
+        mock(ServerCallStreamObserver.class);
+
+    when(responseObserver.isCancelled()).thenReturn(cancelled);
+
+    ServerCalls.bidirectionalStreamingCall(responseObserver,
+        ignored -> {
+          throw new RuntimeException();
+        },
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
+
+    verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
+  }
+
+  @Test
+  void bidirectionalStreamingCallPublishedError() {
+    @SuppressWarnings("unchecked") final ServerCallStreamObserver<Integer> responseObserver =
+        mock(ServerCallStreamObserver.class);
+
+    ServerCalls.bidirectionalStreamingCall(responseObserver,
+        ignored -> JdkFlowAdapter.publisherToFlowPublisher(Mono.error(RuntimeException::new)),
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
+
+    verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, false);
+  }
 }
