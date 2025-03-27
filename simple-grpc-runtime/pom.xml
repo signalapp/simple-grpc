@@ -77,6 +77,27 @@
     </extensions>
 
     <plugins>
+      <!-- Add examples as a source directory -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <id>add-examples</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>src/example/java</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
@@ -93,10 +114,11 @@
               <goal>test-compile</goal>
               <goal>test-compile-custom</goal>
             </goals>
+
             <configuration>
               <protocPlugins>
                 <protocPlugin>
-                  <id>simple</id>
+                  <id>simple-grpc</id>
                   <groupId>org.signal</groupId>
                   <artifactId>simple-grpc-generator</artifactId>
                   <version>${project.version}</version>

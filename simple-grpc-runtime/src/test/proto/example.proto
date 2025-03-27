@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+
+package org.signal.grpc.simple.example;
+
+service Calculator {
+  rpc Divide (DivisionRequest) returns (DivisionResponse) {}
+
+  // Add a stream of integers, returning the new sum after each addition
+  rpc RunningAddition (stream AdditionRequest) returns (stream AdditionResponse) {}
+}
+
+message DivisionRequest {
+  int32 dividend = 1;
+  int32 divisor = 2;
+}
+
+message DivisionResponse {
+  int32 quotient = 1;
+}
+
+message AdditionRequest {
+  int32 addend = 1;
+}
+
+message AdditionResponse {
+  int64 sum = 1;
+}
