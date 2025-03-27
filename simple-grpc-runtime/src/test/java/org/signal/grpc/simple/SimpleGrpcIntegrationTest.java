@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
@@ -100,12 +101,12 @@ public class SimpleGrpcIntegrationTest {
     }
 
     @Override
-    protected Throwable mapException(final Throwable e) {
+    protected Optional<Status> mapExceptionToStatus(final Throwable e) {
       if (e instanceof IllegalArgumentException) {
-        return Status.INVALID_ARGUMENT.withCause(e).asException();
+        return Optional.of(Status.INVALID_ARGUMENT.withCause(e));
       }
 
-      return super.mapException(e);
+      return super.mapExceptionToStatus(e);
     }
   }
 

@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.ServerCallStreamObserver;
+import java.util.Optional;
 import java.util.concurrent.Flow;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
@@ -65,7 +66,7 @@ class ServerResponseSubscriberTest {
     }).when(responseObserver).setOnCancelHandler(any());
 
     serverResponseSubscriber =
-        new ServerResponseSubscriber<>(responseObserver, ServerResponseSubscriberTest::mapException);
+        new ServerResponseSubscriber<>(responseObserver, ignored -> Optional.of(MAPPED_EXCEPTION_STATUS));
   }
 
   @ParameterizedTest
@@ -183,9 +184,5 @@ class ServerResponseSubscriberTest {
     onCancelHandler.get().run();
 
     verify(subscription).cancel();
-  }
-
-  private static Throwable mapException(final Throwable ignored) {
-    return MAPPED_EXCEPTION_STATUS.asException();
   }
 }

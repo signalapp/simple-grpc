@@ -49,8 +49,16 @@ public final class {{className}} {
                     .build();
         }
 
-        protected Throwable mapException(final Throwable e) {
-            return org.signal.grpc.simple.ServerCalls.mapException(e);
+        /**
+         * Optionally maps an exception thrown or published by an RPC implementation method to a gRPC status. Unmapped
+         * exceptions will be converted to a gRPC status via {@link io.grpc.Status#fromThrowable(Throwable)}.
+         *
+         * @param throwable the exception to map to a gRPC status
+         *
+         * @return a gRPC status or empty if the exception does not map to a known status
+         */
+        protected java.util.Optional<io.grpc.Status> mapExceptionToStatus(final Throwable throwable) {
+            return java.util.Optional.empty();
         }
     }
 
@@ -81,7 +89,7 @@ public final class {{className}} {
                     org.signal.grpc.simple.ServerCalls.{{simpleCallsMethodName}}(({{inputType}}) request,
                             (io.grpc.stub.ServerCallStreamObserver<{{outputType}}>) responseObserver,
                             serviceImpl::{{methodNameCamelCase}},
-                            serviceImpl::mapException);
+                            serviceImpl::mapExceptionToStatus);
                     break;
                 {{/isManyInput}}
                 {{/methods}}
@@ -100,7 +108,7 @@ public final class {{className}} {
                     return (io.grpc.stub.StreamObserver<Req>) org.signal.grpc.simple.ServerCalls.{{simpleCallsMethodName}}(
                             (io.grpc.stub.ServerCallStreamObserver<{{outputType}}>) responseObserver,
                             serviceImpl::{{methodNameCamelCase}},
-                            serviceImpl::mapException);
+                            serviceImpl::mapExceptionToStatus);
                 {{/isManyInput}}
                 {{/methods}}
                 default:
