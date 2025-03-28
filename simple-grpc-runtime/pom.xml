@@ -13,7 +13,7 @@
   <parent>
     <groupId>org.signal</groupId>
     <artifactId>simple-grpc</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>JGITVER</version>
   </parent>
 
   <artifactId>simple-grpc-runtime</artifactId>

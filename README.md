@@ -266,6 +266,28 @@ protected Optional<Status> mapExceptionToStatus(final Throwable throwable) {
 }
 ```
 
+## Building and testing
+
+simple-grpc uses [Maven](https://maven.apache.org/) as its build system. To build simple-grpc from source:
+
+```shell
+./mvnw clean package
+```
+
+…or to run tests:
+
+```shell
+./mvnw clean test
+```
+
+### For IntelliJ IDEA users
+
+Note that IntelliJ IDEA struggles with multi-module projects that set their versions on the fly (like simple-grpc). Please see [IDEA-187928](https://youtrack.jetbrains.com/issue/IDEA-187928/Jgitver-not-working-at-all-for-a-multimodule-project) for background and discussion, but in short, IntelliJ users are likely to encounter an error something like:
+
+> Could not find artifact org.signal:simple-grpc:jar:tests:0.0.1-SNAPSHOT
+
+To work around the issue, IntelliJ users can navigate to Settings → Build, Execution, Deployment → Build Tools → Maven → Importing and add `-Djgitver.skip=true` to "VM options for importer."
+
 ## License
 
 TODO
