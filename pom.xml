@@ -32,7 +32,7 @@
     <junit.version>5.12.1</junit.version>
     <mockito.version>5.16.1</mockito.version>
     <protoc.version>3.25.5</protoc.version> <!-- Same version as grpc-protobuf -->
-    <reactor.bom.version>2020.0.9</reactor.bom.version>
+    <reactor.bom.version>2024.0.4</reactor.bom.version> <!-- 3.7.1, see https://github.com/reactor/reactor#bom-versioning-scheme -->
   </properties>
 
   <dependencyManagement>
