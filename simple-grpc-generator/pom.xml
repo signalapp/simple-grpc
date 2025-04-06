@@ -17,6 +17,7 @@
   </parent>
 
   <artifactId>simple-grpc-generator</artifactId>
+  <name>simple-grpc generator</name>
 
   <properties>
     <maven.compiler.source>9</maven.compiler.source>

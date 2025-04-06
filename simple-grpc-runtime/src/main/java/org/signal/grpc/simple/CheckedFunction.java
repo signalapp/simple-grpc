@@ -13,5 +13,15 @@ package org.signal.grpc.simple;
  */
 @FunctionalInterface
 public interface CheckedFunction<T, R> {
+
+  /**
+   * Applies this function to the given argument.
+   *
+   * @param argument the function argument
+   *
+   * @return the function result
+   *
+   * @throws Exception in the event of an error of any kind when applying the function to the given argument
+   */
   R apply(T argument) throws Exception;
 }

@@ -290,4 +290,6 @@ To work around the issue, IntelliJ users can navigate to Settings → Build, Exe
 
 ## License
 
-TODO
+Copyright 2025 Signal Messenger, LLC
+
+Licensed under the [GNU AGPLv3](https://www.gnu.org/licenses/agpl-3.0.html).

@@ -17,6 +17,7 @@
   </parent>
 
   <artifactId>simple-grpc-runtime</artifactId>
+  <name>simple-grpc runtime</name>
 
   <properties>
     <maven.compiler.source>9</maven.compiler.source>

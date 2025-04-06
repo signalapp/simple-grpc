@@ -14,6 +14,42 @@
   <version>JGITVER</version>
   <packaging>pom</packaging>
 
+  <name>simple-grpc parent</name>
+  <description>A Java server code generator for gRPC focusing on simplicity and ease of implementation</description>
+  <inceptionYear>2025</inceptionYear>
+  <url>https://github.com/signalapp/simple-grpc</url>
+
+  <distributionManagement>
+    <repository>
+      <id>ossrh</id>
+      <name>Central Repository OSSRH</name>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
+
+  <licenses>
+    <license>
+      <name>AGPLv3</name>
+      <url>https://www.gnu.org/licenses/agpl-3.0.html</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Jon Chambers</name>
+      <email>jon@signal.org</email>
+      <organization>Signal Messenger, LLC</organization>
+      <organizationUrl>https://signal.org/</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/signalapp/simple-grpc.git</connection>
+    <developerConnection>scm:git:ssh://github.com:signalapp/simple-grpc.git</developerConnection>
+    <url>https://github.com/signalapp/simple-grpc/</url>
+  </scm>
+
   <modules>
     <module>simple-grpc-generator</module>
     <module>simple-grpc-runtime</module>
@@ -96,6 +132,68 @@
   <build>
     <pluginManagement>
       <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-gpg-plugin</artifactId>
+          <version>3.2.7</version>
+
+          <configuration>
+            <!-- Prevent gpg from using pinentry programs;
+            see https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#extra-setup-for-pomxml -->
+            <gpgArguments>
+              <arg>--pinentry-mode</arg>
+              <arg>loopback</arg>
+            </gpgArguments>
+          </configuration>
+
+          <executions>
+            <execution>
+              <id>sign-artifacts</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>sign</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>3.11.2</version>
+
+          <configuration>
+            <links>
+              <link>https://grpc.github.io/grpc-java/javadoc/</link>
+              <link>https://www.javadoc.io/doc/com.google.protobuf/protobuf-java/${protoc.version}/</link>
+            </links>
+          </configuration>
+
+          <executions>
+            <execution>
+              <id>attach-javadocs</id>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>3.3.1</version>
+
+          <executions>
+            <execution>
+              <id>attach-sources</id>
+              <goals>
+                <goal>jar-no-fork</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
