@@ -11,6 +11,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        # We'll only get a lightweight tag without `fetch-tags`, and `jgitver` expects an annotated tag
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up JDK 21 with Maven Central
         uses: actions/setup-java@7a6d8a8234af8eb26422e24e3006232cccaa061b # v4.6.0
