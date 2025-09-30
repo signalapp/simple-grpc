@@ -63,12 +63,12 @@
     <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
     <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
 
-    <grpc.version>1.71.0</grpc.version>
+    <grpc.version>1.75.0</grpc.version>
     <jprotoc.version>1.2.2</jprotoc.version>
-    <junit.version>5.12.1</junit.version>
-    <mockito.version>5.16.1</mockito.version>
-    <protoc.version>3.25.5</protoc.version> <!-- Same version as grpc-protobuf -->
-    <reactor.bom.version>2024.0.4</reactor.bom.version> <!-- 3.7.1, see https://github.com/reactor/reactor#bom-versioning-scheme -->
+    <junit.version>5.13.4</junit.version>
+    <mockito.version>5.19.0</mockito.version>
+    <protoc.version>3.25.8</protoc.version> <!-- Same version as grpc-protobuf -->
+    <reactor.bom.version>2024.0.10</reactor.bom.version> <!-- 3.7.11, see https://github.com/reactor/reactor#bom-versioning-scheme -->
   </properties>
 
   <dependencyManagement>
@@ -103,6 +103,16 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-stub</artifactId>
         <version>${grpc.version}</version>
+
+        <!-- grpc-stub's various dependencies disagree about which version of `error_prone_annotations` they want, but
+         since we're not actually using https://github.com/google/error-prone for static analysis, we can just omit the
+         dependency entirely to avoid the conflicts -->
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.errorprone</groupId>
+            <artifactId>error_prone_annotations</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <!-- necessary for Java 9+ -->
@@ -134,8 +144,14 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-gpg-plugin</artifactId>
-          <version>3.2.7</version>
+          <version>3.2.8</version>
 
           <configuration>
             <!-- Prevent gpg from using pinentry programs;
@@ -150,7 +166,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>3.11.2</version>
+          <version>3.12.0</version>
 
           <configuration>
             <links>
@@ -167,6 +183,12 @@
         </plugin>
 
         <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>3.5.0</version>
+        </plugin>
+
+        <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
           <version>${protobuf.plugin.version}</version>
@@ -175,6 +197,27 @@
     </pluginManagement>
 
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+
+        <executions>
+          <execution>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <dependencyConvergence/>
+                <requireMavenVersion>
+                  <version>3.9.11</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
