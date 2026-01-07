@@ -63,12 +63,12 @@
     <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
     <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
 
-    <grpc.version>1.75.0</grpc.version>
+    <grpc.version>1.78.0</grpc.version>
     <jprotoc.version>1.2.2</jprotoc.version>
-    <junit.version>5.13.4</junit.version>
-    <mockito.version>5.19.0</mockito.version>
+    <junit.version>5.14.2</junit.version>
+    <mockito.version>5.21.0</mockito.version>
     <protoc.version>3.25.8</protoc.version> <!-- Same version as grpc-protobuf -->
-    <reactor.bom.version>2024.0.10</reactor.bom.version> <!-- 3.7.11, see https://github.com/reactor/reactor#bom-versioning-scheme -->
+    <reactor.bom.version>2024.0.13</reactor.bom.version> <!-- 3.7.11, see https://github.com/reactor/reactor#bom-versioning-scheme -->
   </properties>
 
   <dependencyManagement>
@@ -145,7 +145,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.6.2</version>
         </plugin>
 
         <plugin>
@@ -179,13 +179,13 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
-          <version>3.3.1</version>
+          <version>3.4.0</version>
         </plugin>
 
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.6.1</version>
         </plugin>
 
         <plugin>
