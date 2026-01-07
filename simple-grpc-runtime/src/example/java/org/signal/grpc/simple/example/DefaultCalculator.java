@@ -6,7 +6,6 @@
 package org.signal.grpc.simple.example;
 
 import io.grpc.stub.StreamObserver;
-import org.checkerframework.checker.units.qual.A;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class DefaultCalculator extends CalculatorGrpc.CalculatorImplBase {
