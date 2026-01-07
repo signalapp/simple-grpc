@@ -7,9 +7,9 @@ package org.signal.grpc.simple;
 
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import java.util.function.Function;
@@ -37,7 +37,7 @@ public class ServerCalls {
       final Req request,
       final ServerCallStreamObserver<Resp> responseObserver,
       final CheckedFunction<Req, Resp> delegate,
-      final Function<Throwable, Optional<Status>> exceptionMapper) {
+      final Function<Throwable, Throwable> exceptionMapper) {
 
     try {
       final Resp response = delegate.apply(request);
@@ -68,7 +68,7 @@ public class ServerCalls {
       final Req request,
       final ServerCallStreamObserver<Resp> responseObserver,
       final CheckedFunction<Req, Flow.Publisher<Resp>> delegate,
-      final Function<Throwable, Optional<Status>> exceptionMapper) {
+      final Function<Throwable, Throwable> exceptionMapper) {
 
     try {
       delegate.apply(request)
@@ -94,7 +94,7 @@ public class ServerCalls {
   public static <Req, Resp> StreamObserver<Req> clientStreamingCall(
       final ServerCallStreamObserver<Resp> responseObserver,
       final CheckedFunction<Flow.Publisher<Req>, CompletionStage<Resp>> delegate,
-      final Function<Throwable, Optional<Status>> exceptionMapper) {
+      final Function<Throwable, Throwable> exceptionMapper) {
 
     final ClientRequestPublisher<Req> clientRequestPublisher = new ClientRequestPublisher<>(responseObserver);
 
@@ -137,7 +137,7 @@ public class ServerCalls {
   public static <Req, Resp> StreamObserver<Req> bidirectionalStreamingCall(
       final ServerCallStreamObserver<Resp> responseObserver,
       final CheckedFunction<Flow.Publisher<Req>, Flow.Publisher<Resp>> delegate,
-      final Function<Throwable, Optional<Status>> exceptionMapper) {
+      final Function<Throwable, Throwable> exceptionMapper) {
 
     final ClientRequestPublisher<Req> clientRequestPublisher = new ClientRequestPublisher<>(responseObserver);
 
@@ -151,17 +151,37 @@ public class ServerCalls {
     return clientRequestPublisher;
   }
 
+  /**
+   * Performs a default mapping of exceptions to {@code StatusException}. Exceptions that are already instances of
+   * {@link StatusException} or {@link StatusRuntimeException} are returned unchanged. If the given exception is not
+   * a {@code StatusException} or {@code StatusRuntimeException} but is caused by one of those classes, then the
+   * status-bearing cause is returned.
+   *
+   * @param e the exception to map to a gRPC {@code StatusException}
+   *
+   * @return a {@code StatusException} or {@code StatusRuntimeException} derived from the given exception
+   */
+  public static Throwable mapException(final Throwable e) {
+    if (e instanceof StatusException || e instanceof StatusRuntimeException) {
+      return e;
+    } else {
+      return Status.fromThrowable(e).asException();
+    }
+  }
+
   private static void handleDelegateException(final Throwable throwable,
-      final Function<Throwable, Optional<Status>> exceptionMapper,
+      final Function<Throwable, Throwable> exceptionMapper,
       final ServerCallStreamObserver<?> responseObserver) {
 
-    final StatusException statusException = exceptionMapper.apply(throwable)
-        .orElseGet(() -> Status.fromThrowable(throwable))
-        .asException();
+    try {
+      final Throwable mappedException = exceptionMapper.apply(throwable);
 
-    // Don't try to respond if the server has already canceled the request
-    if (!responseObserver.isCancelled()) {
-      responseObserver.onError(statusException);
+      // Don't try to respond if the server has already canceled the request
+      if (!responseObserver.isCancelled()) {
+        responseObserver.onError(mappedException);
+      }
+    } catch (final Exception e) {
+      responseObserver.onError(e);
     }
   }
 }

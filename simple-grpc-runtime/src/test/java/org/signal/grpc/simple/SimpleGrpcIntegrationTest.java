@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.grpc.Channel;
+import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -22,11 +23,11 @@ import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
@@ -34,6 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,9 @@ import reactor.adapter.JdkFlowAdapter;
 import reactor.core.publisher.Flux;
 
 public class SimpleGrpcIntegrationTest {
+  private static final int MAX_ADDENDS = 10;
+  private static final Metadata.Key<String> MAX_ADDENDS_KEY =
+      Metadata.Key.of("max-addends", Metadata.ASCII_STRING_MARSHALLER);
 
   private CalculatorService calculatorService;
 
@@ -57,6 +63,12 @@ public class SimpleGrpcIntegrationTest {
     public AdditionResponse add(final AdditionRequest request) {
       if (request.getAddendList().isEmpty()) {
         throw new IllegalArgumentException("Must specify at least one addend");
+      }
+
+      if (request.getAddendCount() > MAX_ADDENDS) {
+        final Metadata trailers = new Metadata();
+        trailers.put(MAX_ADDENDS_KEY, Integer.toString(MAX_ADDENDS));
+        throw new UncheckedIOException(new IOException(Status.RESOURCE_EXHAUSTED.asRuntimeException(trailers)));
       }
 
       return AdditionResponse.newBuilder().setSum(request.getAddendList().stream()
@@ -101,12 +113,16 @@ public class SimpleGrpcIntegrationTest {
     }
 
     @Override
-    protected Optional<Status> mapExceptionToStatus(final Throwable e) {
+    protected Throwable mapException(final Throwable e) {
       if (e instanceof IllegalArgumentException) {
-        return Optional.of(Status.INVALID_ARGUMENT.withCause(e));
+        return Status.INVALID_ARGUMENT.withCause(e).asException();
+      } else if (e instanceof UncheckedIOException) {
+        // returns an IOException, not a StatusException, but should still get converted to a StatusException if
+        // the IOException has a StatusException as a cause
+        return e.getCause();
       }
 
-      return super.mapExceptionToStatus(e);
+      return super.mapException(e);
     }
   }
 
@@ -150,6 +166,19 @@ public class SimpleGrpcIntegrationTest {
         assertThrows(StatusRuntimeException.class, () -> stub.add(AdditionRequest.newBuilder().build()));
 
     assertEquals(Status.INVALID_ARGUMENT, statusRuntimeException.getStatus());
+  }
+
+  @Test
+  void testUnaryExceptionWithTrailers() {
+    final CalculatorGrpc.CalculatorBlockingStub stub = CalculatorGrpc.newBlockingStub(channel);
+
+    final StatusRuntimeException statusRuntimeException =
+        assertThrows(StatusRuntimeException.class, () -> stub.add(AdditionRequest.newBuilder()
+            .addAllAddend(IntStream.range(0, 11).boxed().collect(Collectors.toList()))
+            .build()));
+
+    assertEquals(Status.RESOURCE_EXHAUSTED, statusRuntimeException.getStatus());
+    assertEquals(MAX_ADDENDS, Integer.parseInt(statusRuntimeException.getTrailers().get(MAX_ADDENDS_KEY)));
   }
 
   @Test

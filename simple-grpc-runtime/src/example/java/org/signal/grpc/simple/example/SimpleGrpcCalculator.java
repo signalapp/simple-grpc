@@ -22,12 +22,12 @@ public class SimpleGrpcCalculator extends SimpleCalculatorGrpc.CalculatorImplBas
   }
 
   @Override
-  protected Optional<Status> mapExceptionToStatus(final Throwable throwable) {
+  protected Throwable mapException(final Throwable throwable) {
     if (throwable instanceof ArithmeticException) {
-      return Optional.of(Status.INVALID_ARGUMENT.withCause(throwable));
+      return Status.INVALID_ARGUMENT.withCause(throwable).asRuntimeException();
     }
 
-    return super.mapExceptionToStatus(throwable);
+    return super.mapException(throwable);
   }
 
   @Override

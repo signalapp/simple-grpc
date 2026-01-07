@@ -60,16 +60,16 @@ simple-grpc allows implementations to provide their own exception-to-`Status`-ma
 
 ```java
 @Override
-protected Optional<Status> mapExceptionToStatus(final Throwable throwable) {
+protected Throwable mapException(final Throwable throwable) {
   if (throwable instanceof ArithmeticException) {
-    return Optional.of(Status.INVALID_ARGUMENT.withCause(throwable));
+    return Status.INVALID_ARGUMENT.withCause(throwable);
   }
 
-  return super.mapExceptionToStatus(throwable);
+  return super.mapException(throwable);
 }
 ```
 
-With this exception mapper in place, a division-by-zero error would produce an `ArithmeticException` which simple-grpc would pass to `mapExceptionToStatus`, which would in turn translate it to a more appropriate status. Callers may also choose to catch and handle exceptions in implementing methods, but service-level exception mapping functions can be helpful for common exception types.
+With this exception mapper in place, a division-by-zero error would produce an `ArithmeticException` which simple-grpc would pass to `mapException`, which would in turn translate it to a more appropriate status. Callers may also choose to catch and handle exceptions in implementing methods, but service-level exception mapping functions can be helpful for common exception types.
 
 Let's consider a second example to illustrate how simple-grpc simplifies conceptual models. This time, let's consider a bidirectional streaming service. We'll add a new method to our example `Calculator` service:
 
@@ -248,23 +248,24 @@ In general, gRPC services have four distinct types of remote procedure calls (RP
 
 All error reporting pathways in all RPC types ultimately pass through an implementation's exception-mapping method. This applies to thrown exceptions, errors published via a `Flow.Subscription`, and errors yielded by failed `CompletionStage`s.
 
-The default exception-mapping method has the following behavior:
-
-- For a [`StatusException`](https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusException.html) or [`StatusRuntimeException`](https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusRuntimeException.html), simple-grpc will transmit the gRPC [`Status`](https://grpc.github.io/grpc-java/javadoc/io/grpc/Status.html) from the exception to the calling client.
-- For other types of exceptions, it will invoke [`Status#fromThrowable`](https://grpc.github.io/grpc-java/javadoc/io/grpc/Status.html#fromThrowable(java.lang.Throwable)) to find a `StatusException` or `StatusRuntimeException` in the exception's causal chain. If one is found, then simple-grpc will transmit the `Status` from the exception. Otherwise, it will transmit an error with a [status code](https://grpc.io/docs/guides/status-codes/) of `UNKNOWN`.
-
-Callers may override the default exception mapper for each generated service to return a specific gRPC `Status` for specific exceptions. To recall a prior example, a custom exception mapper might look something like this:
+Callers may provide custom exception mapping for each generated service. To recall a prior example, a custom exception mapper might look something like this:
 
 ```java
 @Override
-protected Optional<Status> mapExceptionToStatus(final Throwable throwable) {
+protected Throwable mapException(final Throwable throwable) {
   if (throwable instanceof ArithmeticException) {
-    return Optional.of(Status.INVALID_ARGUMENT.withCause(throwable));
+    return Status.INVALID_ARGUMENT.withCause(throwable);
   }
 
-  return super.mapExceptionToStatus(throwable);
+  return super.mapException(throwable);
 }
 ```
+
+After any custom mapping is applied, simple-grpc has the following behavior:
+
+- For a [`StatusException`](https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusException.html) or [`StatusRuntimeException`](https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusRuntimeException.html), simple-grpc will transmit the exception to the calling client.
+- For other types of exceptions, it will invoke [`Status#fromThrowable`](https://grpc.github.io/grpc-java/javadoc/io/grpc/Status.html#fromThrowable(java.lang.Throwable)) to find a `StatusException` or `StatusRuntimeException` in the exception's causal chain. If one is found, then simple-grpc will transmit the `Status` from the exception. Otherwise, it will transmit an error with a [status code](https://grpc.io/docs/guides/status-codes/) of `UNKNOWN`.
+
 
 ## Building and testing
 

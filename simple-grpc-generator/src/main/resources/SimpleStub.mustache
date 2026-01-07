@@ -50,15 +50,16 @@ public final class {{className}} {
         }
 
         /**
-         * Optionally maps an exception thrown or published by an RPC implementation method to a gRPC status. Unmapped
-         * exceptions will be converted to a gRPC status via {@link io.grpc.Status#fromThrowable(Throwable)}.
+         * Transform an exception thrown by this service before forwarding it to the gRPC runtime.
          *
-         * @param throwable the exception to map to a gRPC status
+         * {@link io.grpc.StatusException} and {@link io.grpc.StatusRuntimeExceptions} will be forwarded directly. Other
+         * exceptions will be converted via {@link io.grpc.Status#fromThrowable(Throwable)}
          *
-         * @return a gRPC status or empty if the exception does not map to a known status
+         * @param e The exception thrown by the service RPC
+         * @return the exception that should be forwarded
          */
-        protected java.util.Optional<io.grpc.Status> mapExceptionToStatus(final Throwable throwable) {
-            return java.util.Optional.empty();
+        protected Throwable mapException(final Throwable e) {
+            return org.signal.grpc.simple.ServerCalls.mapException(e);
         }
     }
 
@@ -89,7 +90,7 @@ public final class {{className}} {
                     org.signal.grpc.simple.ServerCalls.{{simpleCallsMethodName}}(({{inputType}}) request,
                             (io.grpc.stub.ServerCallStreamObserver<{{outputType}}>) responseObserver,
                             serviceImpl::{{methodNameCamelCase}},
-                            serviceImpl::mapExceptionToStatus);
+                            serviceImpl::mapException);
                     break;
                 {{/isManyInput}}
                 {{/methods}}
@@ -108,7 +109,7 @@ public final class {{className}} {
                     return (io.grpc.stub.StreamObserver<Req>) org.signal.grpc.simple.ServerCalls.{{simpleCallsMethodName}}(
                             (io.grpc.stub.ServerCallStreamObserver<{{outputType}}>) responseObserver,
                             serviceImpl::{{methodNameCamelCase}},
-                            serviceImpl::mapExceptionToStatus);
+                            serviceImpl::mapException);
                 {{/isManyInput}}
                 {{/methods}}
                 default:

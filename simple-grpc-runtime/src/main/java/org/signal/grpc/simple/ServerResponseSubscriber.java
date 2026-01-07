@@ -5,10 +5,7 @@
 
 package org.signal.grpc.simple;
 
-import io.grpc.Status;
-import io.grpc.StatusException;
 import io.grpc.stub.ServerCallStreamObserver;
-import java.util.Optional;
 import java.util.concurrent.Flow;
 import java.util.function.Function;
 
@@ -25,7 +22,7 @@ import java.util.function.Function;
 class ServerResponseSubscriber<T> implements Flow.Subscriber<T> {
 
   private final ServerCallStreamObserver<T> responseObserver;
-  private final Function<Throwable, Optional<Status>> exceptionMapper;
+  private final Function<Throwable, Throwable> exceptionMapper;
 
   private Flow.Subscription subscription;
 
@@ -39,7 +36,7 @@ class ServerResponseSubscriber<T> implements Flow.Subscriber<T> {
    * @param exceptionMapper a function to map exceptions to gRPC status codes
    */
   public ServerResponseSubscriber(final ServerCallStreamObserver<T> responseObserver,
-      final Function<Throwable, Optional<Status>> exceptionMapper) {
+      final Function<Throwable, Throwable> exceptionMapper) {
 
     this.responseObserver = responseObserver;
     this.exceptionMapper = exceptionMapper;
@@ -79,13 +76,15 @@ class ServerResponseSubscriber<T> implements Flow.Subscriber<T> {
 
   @Override
   public void onError(final Throwable throwable) {
-    final StatusException statusException = exceptionMapper.apply(throwable)
-        .orElseGet(() -> Status.fromThrowable(throwable))
-        .asException();
+    try {
+      final Throwable mappedThrowable = exceptionMapper.apply(throwable);
 
-    // Don't send errors if the call is cancelled
-    if (!responseObserver.isCancelled()) {
-      responseObserver.onError(statusException);
+      // Don't send errors if the call is cancelled
+      if (!responseObserver.isCancelled()) {
+        responseObserver.onError(mappedThrowable);
+      }
+    } catch (final Exception e) {
+      responseObserver.onError(e);
     }
   }
 

@@ -21,7 +21,6 @@ import io.grpc.StatusException;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
@@ -46,7 +45,7 @@ class ServerCallsTest {
 
     when(responseObserver.isCancelled()).thenReturn(cancelled);
 
-    ServerCalls.unaryCall("Test request", responseObserver, ignored -> response, ignored -> Optional.empty());
+    ServerCalls.unaryCall("Test request", responseObserver, ignored -> response, ServerCalls::mapException);
 
     verify(responseObserver, atLeastOnce()).isCancelled();
 
@@ -66,7 +65,7 @@ class ServerCallsTest {
 
     when(responseObserver.isCancelled()).thenReturn(cancelled);
 
-    final Function<Throwable, Optional<Status>> mapException = ignored -> Optional.of(Status.RESOURCE_EXHAUSTED);
+    final Function<Throwable, Throwable> mapException = ignored -> Status.RESOURCE_EXHAUSTED.asException();
 
     ServerCalls.unaryCall("Test request", responseObserver, ignored -> {
       throw new RuntimeException();
@@ -85,7 +84,7 @@ class ServerCallsTest {
     ServerCalls.serverStreamingCall("Test request",
         responseObserver,
         ignored -> JdkFlowAdapter.publisherToFlowPublisher(Flux.range(0, 3)),
-        ignored -> Optional.empty());
+        ServerCalls::mapException);
 
     final ArgumentCaptor<Integer> argumentCaptor = ArgumentCaptor.forClass(Integer.class);
 
@@ -108,7 +107,7 @@ class ServerCallsTest {
         ignored -> {
           throw new RuntimeException();
         },
-        ignored -> Optional.of(Status.RESOURCE_EXHAUSTED));
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
 
     verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
   }
@@ -121,7 +120,7 @@ class ServerCallsTest {
     ServerCalls.serverStreamingCall("Test request",
         responseObserver,
         ignored -> JdkFlowAdapter.publisherToFlowPublisher(Mono.error(RuntimeException::new)),
-        ignored -> Optional.of(Status.RESOURCE_EXHAUSTED));
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
 
     verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, false);
   }
@@ -153,7 +152,7 @@ class ServerCallsTest {
                 JdkFlowAdapter.flowPublisherToFlux(requestPublisher)
                     .collectList()
                     .toFuture()),
-            ignored -> Optional.empty());
+            ServerCalls::mapException);
 
     clientRequestPublisher.onNext(0);
     clientRequestPublisher.onNext(1);
@@ -176,7 +175,7 @@ class ServerCallsTest {
         ignored -> {
           throw new RuntimeException();
         },
-        ignored -> Optional.of(Status.RESOURCE_EXHAUSTED));
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
 
     verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
   }
@@ -192,7 +191,7 @@ class ServerCallsTest {
     ServerCalls.clientStreamingCall(responseObserver,
         (CheckedFunction<Flow.Publisher<Integer>, CompletionStage<List<Integer>>>) (ignored ->
             CompletableFuture.failedFuture(new RuntimeException())),
-        ignored -> Optional.of(Status.RESOURCE_EXHAUSTED));
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
 
     verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
   }
@@ -207,7 +206,7 @@ class ServerCallsTest {
             (CheckedFunction<Flow.Publisher<Integer>, Flow.Publisher<Integer>>) (requestPublisher ->
                 JdkFlowAdapter.publisherToFlowPublisher(JdkFlowAdapter.flowPublisherToFlux(requestPublisher)
                     .map(n -> -n))),
-            ignored -> Optional.empty());
+            ServerCalls::mapException);
 
     clientRequestPublisher.onNext(0);
     clientRequestPublisher.onNext(1);
@@ -234,7 +233,7 @@ class ServerCallsTest {
         ignored -> {
           throw new RuntimeException();
         },
-        ignored -> Optional.of(Status.RESOURCE_EXHAUSTED));
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
 
     verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, cancelled);
   }
@@ -246,7 +245,7 @@ class ServerCallsTest {
 
     ServerCalls.bidirectionalStreamingCall(responseObserver,
         ignored -> JdkFlowAdapter.publisherToFlowPublisher(Mono.error(RuntimeException::new)),
-        ignored -> Optional.of(Status.RESOURCE_EXHAUSTED));
+        ignored -> Status.RESOURCE_EXHAUSTED.asException());
 
     verifyError(responseObserver, Status.Code.RESOURCE_EXHAUSTED, false);
   }
