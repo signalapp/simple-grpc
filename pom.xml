@@ -55,12 +55,12 @@
     <os.maven.plugin.version>1.7.1</os.maven.plugin.version>
     <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
 
-    <grpc.version>1.78.0</grpc.version>
+    <grpc.version>1.79.0</grpc.version>
     <jprotoc.version>1.2.2</jprotoc.version>
-    <junit.version>5.14.2</junit.version>
-    <mockito.version>5.21.0</mockito.version>
+    <junit.version>5.14.3</junit.version>
+    <mockito.version>5.22.0</mockito.version>
     <protoc.version>3.25.8</protoc.version> <!-- Same version as grpc-protobuf -->
-    <reactor.bom.version>2024.0.13</reactor.bom.version> <!-- 3.7.11, see https://github.com/reactor/reactor#bom-versioning-scheme -->
+    <reactor.bom.version>2024.0.15</reactor.bom.version> <!-- 3.7.11, see https://github.com/reactor/reactor#bom-versioning-scheme -->
   </properties>
 
   <dependencyManagement>
@@ -183,7 +183,7 @@
         <plugin>
           <groupId>org.sonatype.central</groupId>
           <artifactId>central-publishing-maven-plugin</artifactId>
-          <version>0.9.0</version>
+          <version>0.10.0</version>
         </plugin>
 
         <plugin>
