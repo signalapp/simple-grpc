@@ -19,12 +19,6 @@
   <artifactId>simple-grpc-runtime</artifactId>
   <name>simple-grpc runtime</name>
 
-  <properties>
-    <maven.compiler.source>9</maven.compiler.source>
-    <maven.compiler.target>9</maven.compiler.target>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>io.grpc</groupId>
