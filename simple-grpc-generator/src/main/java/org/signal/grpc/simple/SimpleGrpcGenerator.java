@@ -61,7 +61,7 @@ public class SimpleGrpcGenerator extends Generator {
   public List<PluginProtos.CodeGeneratorResponse.File> generateFiles(final PluginProtos.CodeGeneratorRequest request) throws GeneratorException {
     final List<DescriptorProtos.FileDescriptorProto> protosToGenerate = request.getProtoFileList().stream()
         .filter(protoFile -> request.getFileToGenerateList().contains(protoFile.getName()))
-        .toList();
+        .collect(Collectors.toList());
 
     return generateFiles(findServices(protosToGenerate, ProtoTypeMap.of(request.getProtoFileList())));
   }
@@ -77,7 +77,7 @@ public class SimpleGrpcGenerator extends Generator {
     return fileDescriptorProtos.stream()
         .flatMap(fileDescriptorProto -> IntStream.range(0, fileDescriptorProto.getServiceCount())
             .mapToObj(serviceNumber -> buildServiceContext(fileDescriptorProto, typeMap, serviceNumber)))
-        .toList();
+        .collect(Collectors.toList());
   }
 
   private static ServiceContext buildServiceContext(final DescriptorProtos.FileDescriptorProto fileDescriptorProto,

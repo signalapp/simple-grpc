@@ -24,7 +24,7 @@ class SimpleGrpcGeneratorTest {
     final PluginProtos.CodeGeneratorResponse response =
         ProtocPluginTesting.test(new SimpleGrpcGenerator(), "target/generated-test-sources/protobuf/java/descriptor_dump");
 
-    assertTrue(response.getError().isBlank());
+    assertTrue(response.getError().isEmpty());
     assertFalse(response.getFileList().isEmpty());
   }
 
